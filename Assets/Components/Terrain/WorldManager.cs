@@ -121,29 +121,10 @@ namespace Antymology.Terrain
             int ChunkXCoordinate, int ChunkYCoordinate, int ChunkZCoordinate,
             int LocalXCoordinate, int LocalYCoordinate, int LocalZCoordinate)
         {
-            if
-            (
-                LocalXCoordinate < 0 ||
-                LocalYCoordinate < 0 ||
-                LocalZCoordinate < 0 ||
-                LocalXCoordinate >= Blocks.GetLength(0) ||
-                LocalYCoordinate >= Blocks.GetLength(1) ||
-                LocalZCoordinate >= Blocks.GetLength(2) ||
-                ChunkXCoordinate < 0 ||
-                ChunkYCoordinate < 0 ||
-                ChunkZCoordinate < 0 ||
-                ChunkXCoordinate >= Blocks.GetLength(0) ||
-                ChunkYCoordinate >= Blocks.GetLength(1) ||
-                ChunkZCoordinate >= Blocks.GetLength(2) 
-            )
-                return new AirBlock();
-
-            return Blocks
-            [
-                ChunkXCoordinate * LocalXCoordinate,
-                ChunkYCoordinate * LocalYCoordinate,
-                ChunkZCoordinate * LocalZCoordinate
-            ];
+            int WorldX = (ChunkXCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalXCoordinate;
+            int WorldY = (ChunkYCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalYCoordinate;
+            int WorldZ = (ChunkZCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalZCoordinate;
+            return GetBlock(WorldX, WorldY, WorldZ);
         }
 
         /// <summary>
@@ -156,9 +137,9 @@ namespace Antymology.Terrain
                 WorldXCoordinate < 0 ||
                 WorldYCoordinate < 0 ||
                 WorldZCoordinate < 0 ||
-                WorldXCoordinate > Blocks.GetLength(0) ||
-                WorldYCoordinate > Blocks.GetLength(1) ||
-                WorldZCoordinate > Blocks.GetLength(2)
+                WorldXCoordinate >= Blocks.GetLength(0) ||
+                WorldYCoordinate >= Blocks.GetLength(1) ||
+                WorldZCoordinate >= Blocks.GetLength(2)
             )
             {
                 Debug.Log("Attempted to set a block which didn't exist");
@@ -183,38 +164,10 @@ namespace Antymology.Terrain
             int LocalXCoordinate, int LocalYCoordinate, int LocalZCoordinate,
             AbstractBlock toSet)
         {
-            if
-            (
-                LocalXCoordinate < 0 ||
-                LocalYCoordinate < 0 ||
-                LocalZCoordinate < 0 ||
-                LocalXCoordinate > Blocks.GetLength(0) ||
-                LocalYCoordinate > Blocks.GetLength(1) ||
-                LocalZCoordinate > Blocks.GetLength(2) ||
-                ChunkXCoordinate < 0 ||
-                ChunkYCoordinate < 0 ||
-                ChunkZCoordinate < 0 ||
-                ChunkXCoordinate > Blocks.GetLength(0) ||
-                ChunkYCoordinate > Blocks.GetLength(1) ||
-                ChunkZCoordinate > Blocks.GetLength(2)
-            )
-            {
-                Debug.Log("Attempted to set a block which didn't exist");
-                return;
-            }
-            Blocks
-            [
-                ChunkXCoordinate * LocalXCoordinate,
-                ChunkYCoordinate * LocalYCoordinate,
-                ChunkZCoordinate * LocalZCoordinate
-            ] = toSet;
-
-            SetChunkContainingBlockToUpdate
-            (
-                ChunkXCoordinate * LocalXCoordinate,
-                ChunkYCoordinate * LocalYCoordinate,
-                ChunkZCoordinate * LocalZCoordinate
-            );
+            int WorldX = (ChunkXCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalXCoordinate;
+            int WorldY = (ChunkYCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalYCoordinate;
+            int WorldZ = (ChunkZCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalZCoordinate;
+            SetBlock(WorldX, WorldY, WorldZ, toSet);
         }
 
         #endregion
@@ -395,7 +348,7 @@ namespace Antymology.Terrain
 
             if (updateZ - 1 >= 0)
                 Chunks[updateX, updateY, updateZ - 1].updateNeeded = true;
-            if (updateX + 1 < Chunks.GetLength(2))
+            if (updateZ + 1 < Chunks.GetLength(2))
                 Chunks[updateX, updateY, updateZ + 1].updateNeeded = true;
         }
 
