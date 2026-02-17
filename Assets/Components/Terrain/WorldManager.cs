@@ -1,5 +1,5 @@
-﻿using Antymology.Helpers;
-using System;
+﻿using Antymology.Agents;
+using Antymology.Helpers;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -41,6 +41,18 @@ namespace Antymology.Terrain
         /// </summary>
         private SimplexNoise SimplexNoise;
 
+        /// <summary>
+        /// Number of nest blocks currently in the world.
+        /// </summary>
+        public int NestBlockCount { get; private set; }
+
+        /// <summary>
+        /// The size of the world in blocks for each axis.
+        /// </summary>
+        public int WorldSizeX => Blocks.GetLength(0);
+        public int WorldSizeY => Blocks.GetLength(1);
+        public int WorldSizeZ => Blocks.GetLength(2);
+
         #endregion
 
         #region Initialization
@@ -77,18 +89,31 @@ namespace Antymology.Terrain
             GenerateData();
             GenerateChunks();
 
-            Camera.main.transform.position = new Vector3(0 / 2, Blocks.GetLength(1), 0);
-            Camera.main.transform.LookAt(new Vector3(Blocks.GetLength(0), 0, Blocks.GetLength(2)));
+            Camera mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                float centerX = Blocks.GetLength(0) * 0.5f;
+                float centerZ = Blocks.GetLength(2) * 0.5f;
+                float height = Blocks.GetLength(1) + Mathf.Max(Blocks.GetLength(0), Blocks.GetLength(2)) * 0.9f;
+                mainCamera.transform.position = new Vector3(centerX, height, centerZ);
+                mainCamera.transform.LookAt(new Vector3(centerX, 0, centerZ));
+            }
+            else
+            {
+                Debug.LogWarning("WorldManager could not find a camera tagged MainCamera.");
+            }
 
             GenerateAnts();
         }
 
         /// <summary>
-        /// TO BE IMPLEMENTED BY YOU
+        /// Initializes the ant simulation controller.
         /// </summary>
         private void GenerateAnts()
         {
-            throw new NotImplementedException();
+            AntColonyController antController = GetComponent<AntColonyController>();
+            if (antController == null)
+                antController = gameObject.AddComponent<AntColonyController>();
         }
 
         #endregion
@@ -146,6 +171,17 @@ namespace Antymology.Terrain
                 return;
             }
 
+            AbstractBlock oldBlock = Blocks[WorldXCoordinate, WorldYCoordinate, WorldZCoordinate];
+            bool oldNest = oldBlock is NestBlock;
+            bool newNest = toSet is NestBlock;
+            if (oldNest && !newNest)
+                NestBlockCount--;
+            if (!oldNest && newNest)
+                NestBlockCount++;
+
+            toSet.worldXCoordinate = WorldXCoordinate;
+            toSet.worldYCoordinate = WorldYCoordinate;
+            toSet.worldZCoordinate = WorldZCoordinate;
             Blocks[WorldXCoordinate, WorldYCoordinate, WorldZCoordinate] = toSet;
 
             SetChunkContainingBlockToUpdate
@@ -168,6 +204,20 @@ namespace Antymology.Terrain
             int WorldY = (ChunkYCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalYCoordinate;
             int WorldZ = (ChunkZCoordinate * ConfigurationManager.Instance.Chunk_Diameter) + LocalZCoordinate;
             SetBlock(WorldX, WorldY, WorldZ, toSet);
+        }
+
+        /// <summary>
+        /// Rebuilds world data back to its initial generated state and refreshes chunk meshes.
+        /// </summary>
+        public void ResetWorldToInitialState()
+        {
+            int seed = ConfigurationManager.Instance.Seed;
+            RNG = new System.Random(seed);
+            SimplexNoise = new SimplexNoise(seed);
+            NestBlockCount = 0;
+
+            GenerateData();
+            MarkAllChunksForUpdate();
         }
 
         #endregion
@@ -355,6 +405,23 @@ namespace Antymology.Terrain
         #endregion
 
         #region Chunks
+
+        /// <summary>
+        /// Marks every chunk for mesh regeneration.
+        /// </summary>
+        private void MarkAllChunksForUpdate()
+        {
+            if (Chunks == null)
+                return;
+
+            for (int x = 0; x < Chunks.GetLength(0); x++)
+                for (int y = 0; y < Chunks.GetLength(1); y++)
+                    for (int z = 0; z < Chunks.GetLength(2); z++)
+                    {
+                        if (Chunks[x, y, z] != null)
+                            Chunks[x, y, z].updateNeeded = true;
+                    }
+        }
 
         /// <summary>
         /// Takes the world data and generates the associated chunk objects.

@@ -1,71 +1,154 @@
-# Assignment 3: Antymology
+# Antymology
 
-As we\'ve seen in class, ants exhibit very interesting behaviour. From finding the shortest path to building bridges out of bodies ants have evolved to produce complex emergents from very simple rules. For your assignment you will need to create a species of ant which is capable of generating the biggest nest possible.
+Antymology is my Unity simulation project where a colony of ants learns, through evolution, to build better nests over generations.
 
-I have already created the base code you will use for the assignment. Currently the simulation environment is devoid of any dynamic behaviour and exists only as a landscape. You will need to extend the functionality of what I have written in order to produce \"intelligent\" behaviour. Absolutely no behaviour has been added to this project so you are free to implement whatever you want however you want, with only a few stipulations.
 
-![Ants](Images/Ants.gif)
+## Project In One Minute
+I spawn one queen ant (yellow) and worker ants(brwon). Every generation, ants act based on their policy parameters, the generation is scored with fitness, and the next generation is created by selecting stronger policies and mutating them.
 
-## Goal
+So the loop is:
+1. Simulate one generation.
+2. Score ants.
+3. Keep/mutate good genomes.
+4. Repeat.
 
-The only goal you have is to implement some sort of evolutionary algorithm which maximises nest production. You are in complete control over how your ants breed, make choices, and interact with the environment. Because of this, your mark is primarily going to be reflective of how much effort it looks like you put into this vs. how well your agents maximise their fitness (I.e. don\'t worry about having your ants perform exceptionally well).
+## What Is Happening
 
-## Current Code
-My code is currently broken into 4 components (found within the components folder)
-1. Agents
-2. Configuration
-3. Terrain
-4. UI
+### 1) World setup
+- The world is procedurally generated (stone/grass/mulch/acid/container blocks).
+- `WorldManager` holds the true block state and chunk meshes.
 
-You are able to experience it generating an environment by simply running the project once you have loaded it into unity.
+### 2) Ant setup
+- Exactly one queen + N workers spawn each generation.
+- Every ant has health and a neural-policy genome.
 
-### Agents
-The agents component is currently empty. This is where you will place most of your code. The component will be responsible for moving ants, digging, making nests, etc. You will need to come up with a system for how ants interact within the world, as well as how you will be maximising their fitness (see ant behaviour).
+### 3) Tick-by-tick simulation
+On each simulation tick:
+1. Health decays.
+2. Acidic blocks apply extra drain (2x).
+3. Each living ant decides an action from:
+   - `Idle`, `Move`, `Dig`, `Eat`, `ShareHealth`, `BuildNest`
+4. World and ant state update.
 
-### Configuration
-This is the component responsible for configuring the system. For example, currently there exists a file called ConfigurationManager which holds the values responsible for world generation such as the dimensions of the world, and the seed used in the RNG. As you build parameters into your system, you will need to place your necesarry configuration components in here.
+### 4) End of generation
+- A fitness value is computed for every ant.
+- Workers are sorted by fitness.
+- Top workers are kept as elites.
+- Remaining workers are made by mutating elites (+ occasional random genome).
+- Queen policy is mutated for the next generation.
 
-### Terrain
-The terrain memory, generation, and display all take place in the terrain component. The main WorldManager is responsible for generating everything.
+This is why behavior generally improves over time, but not strictly every single generation.
 
-### UI
-This is where all UI components will go. Currently only a fly camera, and a camera-controlled map editor are present here.
+## Evolution Algorithm
+Each ant policy is a compact neural network represented as a list of numbers (genome). The network reads observations (health, terrain context, queen relation, valid movement cues) and outputs action preferences.
 
-## Requirements
+At the end of a generation:
+- better genomes are more likely to survive into the next generation,
+- mutation adds variation,
+- repeated selection over many generations shifts the population toward better colony behavior.
 
-### Admin
- - This assignment must be implemented using Unity 2019or above (see appendix)
- - Your code must be maintained in a github (or other similar git environment) repository.
- - You must fork from this repo to start your project.
- - You will be marked for your commit messages as well as the frequency with which you commit. Committing everything at once will receive a letter grade reduction (A →A-).
- - All project documentation should be provided via a Readme.md file found in your repo. Write it as if I was an employer who wanted to see a portfolio of your work. By that I mean write it as if I have no idea what the project is. Describe it in detail. Include images/gifs.
+This project uses reward shaping, so fitness is not only "number of nests now". It also includes survival/resource/support terms, which helps learning start earlier in a complex environment.
 
-### Interface
-- The camera must be usable in play-mode so as to allow the grader the ability to look at what is happening in the scene.
-- You must create a basic UI which shows the current number of nest blocks in the world
+### Default top-down placement
+On scene start, the main camera is moved to a high position above the center of the map and aimed at the center. This gives an immediate bird's-eye view of nest growth, digging paths, hazards, and obstacles.
 
-### Ant Behaviour
-- Ants must have some measure of health. When an ants health hits 0, it dies and needs to be removed from the simulation
-- Every timestep, you must reduce each ants health by some fixed amount
-- Ants can refill their health by consuming Mulch blocks. To consume a mulch block, and ant must be directly ontop of a mulch block. After consuming, the mulch block must be removed from the world.
-- Ants cannot consume mulch if another ant is also on the same mulch block
-- When moving from one black to another, ants are not allowed to move to a block that is greater than 2 units in height difference
-- Ants are able to dig up parts of the world. To dig up some of the world, an ant must be directly ontop of the block. After digging, the block is removed from the map
-- Ants cannot dig up a block of type ContainerBlock
-- Ants standing on an AcidicBlock will have the rate at which their health decreases multiplied by 2.
-- Ants may give some of their health to other ants occupying the same space (must be a zero-sum exchange)
-- Among your ants must exists a singular queen ant who is responsible for producing nest blocks
-- Producing a single nest block must cost the queen 1/3rd of her maximum health.
-- No new ants can be created during each evaluation phase (you are allowed to create as many ants as you need for each new generation though).
+## HUD Guide (Top-Left Panel)
+In each screenshot, use the **top-left black HUD panel**.
 
-## Tips
-Initially you should first come up with some mechanism which each ant uses to interact with the environment. For the beginning phases your ants should behave completely randomly, at least until you have gotten it so that your ants don't break the pre-defined behaviour above.
+What each stat means:
+- `Nest Blocks`: number of nest blocks currently in the world (live progress this generation)
+- `Generation` / `Step`: current generation index and progress within evaluation steps
+- `Last Gen Nests`: nests built by the queen in the previous generation
+- `Best Fitness`: best fitness achieved in the previous generation
+- `Last Gen Avg/Best Worker`: average worker fitness and best worker fitness from previous generation
 
-Once you have the interaction mechanism nailed down, begin thinking about how you will get your ants to change over time. One approach might be to use a neural network to dictate ant behaviour
 
-https://youtu.be/zIkBYwdkuTk
+For comparison quality, these last-generation stats are very useful because they summarize how the previous generation actually performed.
 
-another approach might be to use phermone deposits (I\'ve commented how you could achieve this in the code for the AirBlock) and have your genes be what action should be taken for different phermone concentrations, etc.
+## Screenshot Walkthrough (gen2, gen8, gen23)
 
-## Submission
-Export your project as a Unity package file. Submit your Unity package file and additional document using the D2L system under the corresponding entry in Assessments/Dropbox. Inlude in the message a link to your git repo where you did your work.
+### 1) `gen2.png` (early learning)
+![Generation 2](Images/Screenshots/gen2.png)
+
+HUD in this frame:
+- `Nest Blocks: 19`
+- `Generation: 2  Step: 168/450`
+- `Last Gen Nests: 8`
+- `Best Fitness: 766.80`
+- `Last Gen Avg/Best Worker: 115.98 / 263.20`
+
+Interpretation:
+- By generation 2, the colony already carries signal from generation 1 (`Last Gen Nests: 8`).
+- Fitness values are no longer near zero, so selection/mutation is already finding useful behavior.
+- The red nest region is forming around traversable terrain corridors.
+
+### 2) `gen8.png` (mid-training improvement)
+![Generation 8](Images/Screenshots/gen8.png)
+
+HUD in this frame:
+- `Nest Blocks: 15`
+- `Generation: 8  Step: 289/450`
+- `Last Gen Nests: 10`
+- `Best Fitness: 964.32`
+- `Last Gen Avg/Best Worker: 197.11 / 310.60`
+
+Interpretation:
+- Compared to `gen2`, the previous-generation fitness metrics are significantly higher.
+- `Last Gen Nests` increased from `8` to `10`.
+- Worker quality improved (`Avg/Best Worker` rose), which usually indicates better support behavior for the queen.
+- You can still see fluctuations in current `Nest Blocks`; this is normal in stochastic evolutionary systems.
+
+### 3) `gen14.png` (later-stage stronger policies)
+![Generation 23 Snapshot File](Images/Screenshots/gen14.png)
+
+HUD in this frame:
+- `Nest Blocks: 23`
+- `Generation: 14  Step: 320/450`
+- `Last Gen Nests: 17`
+- `Best Fitness: 1644.12`
+- `Last Gen Avg/Best Worker: 385.51 / 607.95`
+
+Interpretation:
+- This frame shows much stronger performance statistics than earlier screenshots.
+- `Last Gen Nests` and all fitness metrics are substantially higher than in `gen2` and `gen8`.
+- The colony is producing larger nest structures and better aggregate behavior as evolution progresses.
+
+
+## Numbers Can Still Go Up And Down
+Even with evolution, per-generation metrics can fluctuate.
+
+Main reasons:
+- Mutation can degrade a previously good policy.
+- Action sampling is stochastic, so the same policy can produce slightly different outcomes.
+- Fitness is multi-term (not only nest count), so strategies can trade off between survival/support/building.
+
+So what we care about is the longer-term trend in the stats.
+
+## Ant Behavior Constraints Implemented
+- Health system + death at zero
+- Fixed per-tick health drain
+- Mulch consumption for health restore
+- No shared mulch consumption on same block
+- Movement restricted to height difference <= 2
+- Digging removes current support block and ant drops to lower support
+- Cannot dig `ContainerBlock`
+- Acidic blocks double health drain
+- Zero-sum health sharing between co-located ants
+- Exactly one queen ant builds nests
+- Queen nest cost = 1/3 max health (default config)
+- No new ants spawned during an active evaluation phase
+
+## Main Files
+- `Assets/Components/Agents/AntColonyController.cs` - simulation + evolution
+- `Assets/Components/Terrain/WorldManager.cs` - world generation/state
+- `Assets/Components/Configuration/ConfigurationManager.cs` - tunable parameters
+- `Assets/Components/UI/FlyCamera.cs` - camera controls
+
+## How To Run
+1. Open the project in Unity Hub.
+2. Use Unity `6000.3.6f1` (tested version).
+3. Open `Assets/Scenes/SampleScene.unity`.
+4. Press Play.
+
+## Author
+Sina Salahshour
